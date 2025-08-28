@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: bookmarks
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  migrate:
+    image: migrate/migrate:v4.16.2
+    command: ["-path", "/migrations", "-database", "postgres://user:password@db:5432/bookmarks?sslmode=disable", "up"]
+    volumes:
+      - ./database/migrations:/migrations
+    depends_on:
+      - db
+    restart: "no"
+
+volumes:
+  postgres_data:
+
