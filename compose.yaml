@@ -15,7 +15,7 @@ services:
     image: migrate/migrate:v4.16.2
     command: ["-path", "/migrations", "-database", "postgres://user:password@db:5432/bookmarks?sslmode=disable", "up"]
     volumes:
-      - ./database/migrations:/migrations
+      - ./migrations:/migrations
     depends_on:
       - db
     restart: "no"
