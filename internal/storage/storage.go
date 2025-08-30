@@ -13,9 +13,9 @@ const (
 )
 
 type Storage interface {
-	GetBookmarks(ctx context.Context, limit, page int, query string) ([]*model.Bookmark, error)
+	GetBookmarks(ctx context.Context, limit, offset int, search string) ([]*model.Bookmark, error)
 	CreateBookmark(ctx context.Context, title, url string) (*model.Bookmark, error)
-	EditBookmark(ctx context.Context, title, url string) (*model.Bookmark, error)
+	EditBookmark(ctx context.Context, id int, title, url string) (*model.Bookmark, error)
 	DeleteBookmark(ctx context.Context, id int) error
 	BookmarkExist(ctx context.Context, url string) (bool, error)
 }

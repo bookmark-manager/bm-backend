@@ -2,20 +2,25 @@ package config
 
 import (
 	"log"
+	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
-type DBConfig struct {
-	Host     string `env:"DB_HOST" env-default:"localhost"`
-	User     string `env:"DB_USER"`
-	Password string `env:"DB_PASSWORD"`
-	Port     string `env:"PORT" env-default:"5432"`
-	Name     string `env:"DB_NAME"`
+type Config struct {
+	DBHost     string `env:"DB_HOST" env-default:"localhost"`
+	DBUser     string `env:"DB_USER"`
+	DBPassword string `env:"DB_PASSWORD"`
+	DBPort     int    `env:"DB_PORT" env-default:"5432"`
+	DBName     string `env:"DB_NAME" env-default:"bookmarks"`
+
+	HttpAddress     string        `env:"HTTP_ADDRESS" env-default:"0.0.0.0:8080"`
+	HttpIdleTimeout time.Duration `env:"HTTP_IDLE_TIMEOUT" env-default:"60s"`
+	HttpTimeout     time.Duration `env:"HTTP_TIMEOUT" env-default:"4s"`
 }
 
-func MustLoad() *DBConfig {
-	var cfg DBConfig
+func MustLoad() *Config {
+	var cfg Config
 
 	err := cleanenv.ReadEnv(&cfg)
 	if err != nil {

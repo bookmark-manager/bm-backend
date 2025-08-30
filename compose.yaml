@@ -3,22 +3,42 @@ services:
     image: postgres:15
     environment:
       POSTGRES_DB: bookmarks
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   migrate:
     image: migrate/migrate:v4.16.2
-    command: ["-path", "/migrations", "-database", "postgres://user:password@db:5432/bookmarks?sslmode=disable", "up"]
+    command: ["-path", "/migrations", "-database", "postgres://${DB_USER}:${DB_PASSWORD}@db:5432/bookmarks?sslmode=disable", "up"]
     volumes:
       - ./migrations:/migrations
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: "no"
+
+  backend:
+    build: .
+    ports:
+      - '8080:8080'
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: bookmarks
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   postgres_data:

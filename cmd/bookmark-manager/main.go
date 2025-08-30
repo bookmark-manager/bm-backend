@@ -7,26 +7,54 @@ import (
 
 	"github.com/haadi-coder/bookmark-manager/internal/config"
 	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
-
+	"github.com/haadi-coder/bookmark-manager/internal/server"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
 
+var (
+	AllowedOrigins = []string{"http://localhost:5147"}
+)
+
 func main() {
+	if err := run(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	cfg := config.MustLoad()
 
 	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	log.Info("starting bookmark-manager")
+	slog.SetDefault(log)
 
-	_, err := storage.New(&storage.Config{
+	slog.Info("starting bookmark-manager")
+
+	storage, err := storage.New(&storage.Config{
 		Type: storage.Postgresql,
-		Path: fmt.Sprintf("postgres://%s:%s@localhost:5432/bookmarks?sslmode=disable", cfg.User, cfg.Password),
+		Path: fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
+			cfg.DBUser,
+			cfg.DBPassword,
+			cfg.DBHost,
+			cfg.DBPort,
+			cfg.DBName,
+		),
 	})
 	if err != nil {
-		log.Error("failed to init storage", logger.Error(err))
-		os.Exit(1)
+		slog.Error("failed to init storage", logger.Error(err))
+		return fmt.Errorf("failed to init storage: %w", err)
 	}
 
-	// TODO: Router
+	server := server.New(*cfg, storage)
 
-	// TODO: Server run
+	slog.Info("starting HTTP server", slog.String("address", server.Addr))
+
+	if err = server.Start(); err != nil {
+		slog.Error("failed to start server", logger.Error(err))
+		return err
+	}
+
+	log.Info("server stopped")
+
+	return nil
 }

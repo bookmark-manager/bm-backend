@@ -16,7 +16,7 @@ const UniqueViolation = "23505"
 
 var (
 	ErrNotFound = errors.New("bookmark not found")
-	ErrExists   = errors.New("bookmark already exists")
+	ErrExists   = errors.New("bookmark for this url already exists")
 )
 
 type PostgresqlStorage struct {
@@ -34,22 +34,12 @@ func New(path string) (*PostgresqlStorage, error) {
 	}, nil
 }
 
-func (s *PostgresqlStorage) GetBookmarks(ctx context.Context, limit, page int, query string) ([]*model.Bookmark, error) {
-	if limit == 0 {
-		limit = 20
-	}
-
-	if page == 0 {
-		page = 1
-	}
-
+func (s *PostgresqlStorage) GetBookmarks(ctx context.Context, limit, offset int, search string) ([]*model.Bookmark, error) {
 	var rows *sql.Rows
 	var err error
 
-	offset := (page - 1) * limit
-
-	if query != "" {
-		rows, err = s.db.QueryContext(ctx, "SELECT * FROM bookmarks WHERE url ILIKE $1 OR title ILIKE $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3", query, limit, offset)
+	if search != "" {
+		rows, err = s.db.QueryContext(ctx, "SELECT * FROM bookmarks WHERE url ILIKE $1 OR title ILIKE $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3", search, limit, offset)
 	} else {
 		rows, err = s.db.QueryContext(ctx, "SELECT * FROM bookmarks ORDER BY created_at DESC LIMIT $1 OFFSET $2", limit, offset)
 	}
@@ -62,7 +52,7 @@ func (s *PostgresqlStorage) GetBookmarks(ctx context.Context, limit, page int, q
 	for rows.Next() {
 		var bm model.Bookmark
 
-		if err := rows.Scan(&bm.ID, &bm.Title, &bm.URL, &bm.CreatedAt, &bm.UpdatedAt); err != nil {
+		if err := rows.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan bookmark: %w", err)
 		}
 
@@ -77,7 +67,7 @@ func (s *PostgresqlStorage) CreateBookmark(ctx context.Context, title, url strin
 
 	row := s.db.QueryRowContext(ctx, "INSERT INTO bookmarks (title, url) VALUES($1, $2) RETURNING id, url, title, created_at, updated_at", title, url)
 
-	err := row.Scan(&bm.ID, &bm.Title, &bm.URL, &bm.CreatedAt, &bm.UpdatedAt)
+	err := row.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt)
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == UniqueViolation {
 			return nil, ErrExists
@@ -89,13 +79,17 @@ func (s *PostgresqlStorage) CreateBookmark(ctx context.Context, title, url strin
 	return &bm, nil
 }
 
-func (s *PostgresqlStorage) EditBookmark(ctx context.Context, title, url string) (*model.Bookmark, error) {
+func (s *PostgresqlStorage) EditBookmark(ctx context.Context, id int, title, url string) (*model.Bookmark, error) {
 	var bm model.Bookmark
 
-	row := s.db.QueryRowContext(ctx, "UPDATE bookmarks SET title=$1, url=$2 WHERE url=$2 RETURNING id, url, title, created_at, updated_at", title, url)
+	row := s.db.QueryRowContext(ctx, "UPDATE bookmarks SET title=$1, url=$2, updated_at=NOW() WHERE id=$3 RETURNING id, url, title, created_at, updated_at", title, url, id)
 
 	err := row.Scan(&bm.ID, &bm.Title, &bm.URL, &bm.CreatedAt, &bm.UpdatedAt)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+
 		return nil, fmt.Errorf("failed to edit bookmark: %w", err)
 	}
 
