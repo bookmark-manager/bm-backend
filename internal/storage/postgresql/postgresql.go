@@ -84,7 +84,7 @@ func (s *PostgresqlStorage) EditBookmark(ctx context.Context, id int, title, url
 
 	row := s.db.QueryRowContext(ctx, "UPDATE bookmarks SET title=$1, url=$2, updated_at=NOW() WHERE id=$3 RETURNING id, url, title, created_at, updated_at", title, url, id)
 
-	err := row.Scan(&bm.ID, &bm.Title, &bm.URL, &bm.CreatedAt, &bm.UpdatedAt)
+	err := row.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
