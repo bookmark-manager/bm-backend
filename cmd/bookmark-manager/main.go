@@ -11,10 +11,6 @@ import (
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
 
-var (
-	AllowedOrigins = []string{"http://localhost:5147"}
-)
-
 func main() {
 	if err := run(); err != nil {
 		fmt.Println(err)

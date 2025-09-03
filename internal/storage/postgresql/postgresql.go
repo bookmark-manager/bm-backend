@@ -34,32 +34,41 @@ func New(path string) (*PostgresqlStorage, error) {
 	}, nil
 }
 
-func (s *PostgresqlStorage) GetBookmarks(ctx context.Context, limit, offset int, search string) ([]*model.Bookmark, error) {
+func (s *PostgresqlStorage) GetBookmarks(ctx context.Context, limit, offset int, search string) ([]*model.Bookmark, int, error) {
+	var totalCount int
+	var countErr error
+
 	var rows *sql.Rows
-	var err error
+	var queryErr error
 
 	if search != "" {
-		rows, err = s.db.QueryContext(ctx, "SELECT * FROM bookmarks WHERE url ILIKE $1 OR title ILIKE $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3", search, limit, offset)
+		countErr = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM bookmarks WHERE url ILIKE '%' || $1 || '%' OR title ILIKE '%' || $1 || '%'", search).Scan(&totalCount)
+		rows, queryErr = s.db.QueryContext(ctx, "SELECT * FROM bookmarks WHERE url ILIKE '%' || $1 || '%'  OR title ILIKE '%' || $1 || '%'  ORDER BY created_at DESC LIMIT $2 OFFSET $3", search, limit, offset)
 	} else {
-		rows, err = s.db.QueryContext(ctx, "SELECT * FROM bookmarks ORDER BY created_at DESC LIMIT $1 OFFSET $2", limit, offset)
+		countErr = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM bookmarks").Scan(&totalCount)
+		rows, queryErr = s.db.QueryContext(ctx, "SELECT * FROM bookmarks ORDER BY created_at DESC LIMIT $1 OFFSET $2", limit, offset)
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("failed to get bookmarks rows: %w", err)
+	if queryErr != nil {
+		return nil, 0, fmt.Errorf("failed to get bookmarks rows: %w", queryErr)
 	}
 
-	var bookmarks []*model.Bookmark
+	if countErr != nil {
+		return nil, 0, fmt.Errorf("failed to get total count: %w", countErr)
+	}
+
+	bookmarks := []*model.Bookmark{}
 	for rows.Next() {
 		var bm model.Bookmark
 
 		if err := rows.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("failed to scan bookmark: %w", err)
+			return nil, 0, fmt.Errorf("failed to scan bookmark: %w", err)
 		}
 
 		bookmarks = append(bookmarks, &bm)
 	}
 
-	return bookmarks, nil
+	return bookmarks, totalCount, nil
 }
 
 func (s *PostgresqlStorage) CreateBookmark(ctx context.Context, title, url string) (*model.Bookmark, error) {

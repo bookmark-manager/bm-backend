@@ -14,7 +14,8 @@ import (
 )
 
 var (
-	AllowedOrigins = []string{"http://localhost:5147"}
+	AllowedOrigins = []string{"http://localhost:5173"}
+	AllowedMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 )
 
 type Server struct {
@@ -27,7 +28,10 @@ func New(cfg config.Config, storage storage.Storage) *Server {
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
-	router.Use(cors.Handler(cors.Options{AllowedOrigins: AllowedOrigins}))
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins: AllowedOrigins,
+		AllowedMethods: AllowedMethods,
+	}))
 
 	router.Get("/bookmarks", handler.GetBookmarks(context.Background(), storage))
 	router.Post("/bookmarks", handler.CreateBookmark(context.Background(), storage))

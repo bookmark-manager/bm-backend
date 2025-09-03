@@ -19,7 +19,7 @@ func NetscapeBookmarks(ctx context.Context, storage storage.Storage) http.Handle
 	return func(w http.ResponseWriter, r *http.Request) {
 		slog.With(slog.String("request_id", middleware.GetReqID(r.Context())))
 
-		result, err := storage.GetBookmarks(ctx, math.MaxInt32, 0, "")
+		result, totalCount, err := storage.GetBookmarks(ctx, math.MaxInt32, 0, "")
 		if err != nil {
 			slog.Error("failed to get bookmarks from db", logger.Error(err))
 
@@ -31,7 +31,7 @@ func NetscapeBookmarks(ctx context.Context, storage storage.Storage) http.Handle
 			Title: "Bookmarks",
 			Root: types.Folder{
 				Name:      "Bookmarks",
-				Bookmarks: make([]types.Bookmark, 0, len(result)),
+				Bookmarks: make([]types.Bookmark, 0, totalCount),
 			},
 		}
 

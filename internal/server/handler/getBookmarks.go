@@ -23,7 +23,7 @@ func GetBookmarks(ctx context.Context, storage storage.Storage) http.HandlerFunc
 			slog.Error("failed to parse query params. Default params was applied", logger.Error(err))
 		}
 
-		result, err := storage.GetBookmarks(ctx, opts.Perpage, opts.Offset(), opts.Search)
+		result, totalCount, err := storage.GetBookmarks(ctx, opts.Perpage, opts.Offset(), opts.Search)
 		if err != nil {
 			slog.Error("failed to get bookmarks from db", logger.Error(err))
 
@@ -35,7 +35,7 @@ func GetBookmarks(ctx context.Context, storage storage.Storage) http.HandlerFunc
 
 		render.JSON(w, r, response.Response{
 			Data:       result,
-			TotalCount: len(result),
+			TotalCount: totalCount,
 		})
 	}
 }

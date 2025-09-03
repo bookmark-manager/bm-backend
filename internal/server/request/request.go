@@ -28,7 +28,7 @@ func (p *ListOptions) Offset() int {
 }
 
 func ParseListOptions(r *http.Request) (*ListOptions, error) {
-	limit := r.URL.Query().Get("limit")
+	perPage := r.URL.Query().Get("per_page")
 	page := r.URL.Query().Get("page")
 	search := r.URL.Query().Get("search")
 
@@ -38,7 +38,7 @@ func ParseListOptions(r *http.Request) (*ListOptions, error) {
 		Search:  search,
 	}
 
-	parsedLimit, err := strconv.Atoi(limit)
+	parsedLimit, err := strconv.Atoi(perPage)
 	if err != nil {
 		return opts, fmt.Errorf("failed to convert limit to integer: %w", err)
 	}
