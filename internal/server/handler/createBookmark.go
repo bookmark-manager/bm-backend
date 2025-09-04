@@ -14,10 +14,9 @@ import (
 	"github.com/haadi-coder/bookmark-manager/internal/server/request"
 	"github.com/haadi-coder/bookmark-manager/internal/server/response"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
-	"github.com/haadi-coder/bookmark-manager/internal/storage/postgresql"
 )
 
-func CreateBookmark(ctx context.Context, storage storage.Storage) http.HandlerFunc {
+func CreateBookmark(ctx context.Context, store storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slog.With(
 			slog.String("request_id", middleware.GetReqID(r.Context())),
@@ -40,12 +39,12 @@ func CreateBookmark(ctx context.Context, storage storage.Storage) http.HandlerFu
 			return
 		}
 
-		new, err := storage.CreateBookmark(ctx, reqData.Title, reqData.URL)
-		if errors.Is(err, postgresql.ErrExists) {
-			slog.Info(postgresql.ErrExists.Error(), slog.String("url", reqData.URL))
+		new, err := store.CreateBookmark(ctx, reqData.Title, reqData.URL)
+		if errors.Is(err, storage.ErrExists) {
+			slog.Info(storage.ErrExists.Error(), slog.String("url", reqData.URL))
 
 			render.Status(r, http.StatusConflict)
-			render.JSON(w, r, response.Error(postgresql.ErrExists.Error()))
+			render.JSON(w, r, response.Error(storage.ErrExists.Error()))
 			return
 		}
 		if err != nil {

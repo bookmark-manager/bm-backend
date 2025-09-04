@@ -14,7 +14,7 @@ import (
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
 
-func GetBookmarks(ctx context.Context, storage storage.Storage) http.HandlerFunc {
+func GetBookmarks(ctx context.Context, store storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slog.With(slog.String("request_id", middleware.GetReqID(r.Context())))
 
@@ -23,7 +23,7 @@ func GetBookmarks(ctx context.Context, storage storage.Storage) http.HandlerFunc
 			slog.Error("failed to parse query params. Default params was applied", logger.Error(err))
 		}
 
-		result, totalCount, err := storage.GetBookmarks(ctx, opts.Perpage, opts.Offset(), opts.Search)
+		result, totalCount, err := store.GetBookmarks(ctx, opts.Perpage, opts.Offset(), opts.Search)
 		if err != nil {
 			slog.Error("failed to get bookmarks from db", logger.Error(err))
 

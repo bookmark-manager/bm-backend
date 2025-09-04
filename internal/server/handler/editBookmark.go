@@ -15,10 +15,9 @@ import (
 	"github.com/haadi-coder/bookmark-manager/internal/server/request"
 	"github.com/haadi-coder/bookmark-manager/internal/server/response"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
-	"github.com/haadi-coder/bookmark-manager/internal/storage/postgresql"
 )
 
-func EditBookmark(ctx context.Context, storage storage.Storage) http.HandlerFunc {
+func EditBookmark(ctx context.Context, store storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slog.With(
 			slog.String("request_id", middleware.GetReqID(r.Context())),
@@ -51,12 +50,12 @@ func EditBookmark(ctx context.Context, storage storage.Storage) http.HandlerFunc
 			return
 		}
 
-		edited, err := storage.EditBookmark(ctx, parsedId, reqData.Title, reqData.URL)
-		if errors.Is(err, postgresql.ErrNotFound) {
-			slog.Info(postgresql.ErrNotFound.Error(), slog.String("url", reqData.URL))
+		edited, err := store.EditBookmark(ctx, parsedId, reqData.Title, reqData.URL)
+		if errors.Is(err, storage.ErrNotFound) {
+			slog.Info(storage.ErrNotFound.Error(), slog.String("url", reqData.URL))
 
 			render.Status(r, http.StatusNotFound)
-			render.JSON(w, r, response.Error(postgresql.ErrNotFound.Error()))
+			render.JSON(w, r, response.Error(storage.ErrNotFound.Error()))
 			return
 		}
 		if err != nil {

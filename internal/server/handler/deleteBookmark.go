@@ -12,10 +12,9 @@ import (
 	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
 	"github.com/haadi-coder/bookmark-manager/internal/server/response"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
-	"github.com/haadi-coder/bookmark-manager/internal/storage/postgresql"
 )
 
-func DeleteBookmark(ctx context.Context, storage storage.Storage) http.HandlerFunc {
+func DeleteBookmark(ctx context.Context, store storage.Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slog.With(
 			slog.String("request_id", middleware.GetReqID(r.Context())),
@@ -31,12 +30,12 @@ func DeleteBookmark(ctx context.Context, storage storage.Storage) http.HandlerFu
 			return
 		}
 
-		err = storage.DeleteBookmark(ctx, parsedId)
-		if errors.Is(err, postgresql.ErrNotFound) {
-			slog.Info(postgresql.ErrNotFound.Error(), slog.String("id", id))
+		err = store.DeleteBookmark(ctx, parsedId)
+		if errors.Is(err, storage.ErrNotFound) {
+			slog.Info(storage.ErrNotFound.Error(), slog.String("id", id))
 
 			render.Status(r, http.StatusNotFound)
-			render.JSON(w, r, response.Error(postgresql.ErrNotFound.Error()))
+			render.JSON(w, r, response.Error(storage.ErrNotFound.Error()))
 			return
 		}
 		if err != nil {

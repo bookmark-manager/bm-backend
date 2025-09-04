@@ -18,7 +18,7 @@ func CheckBookmark(ctx context.Context, storage storage.Storage) http.HandlerFun
 		)
 
 		url := r.URL.Query().Get("url")
-		ok, err := storage.BookmarkExist(ctx, url)
+		id, ok, err := storage.BookmarkExist(ctx, url)
 		if err != nil {
 			slog.Error("failed to check for bookmark", slog.String("url", url))
 
@@ -34,7 +34,13 @@ func CheckBookmark(ctx context.Context, storage storage.Storage) http.HandlerFun
 		}
 
 		render.JSON(w, r, response.Response{
-			Data: ok,
+			Data: struct {
+				ID    int  `json:"id"`
+				Found bool `json:"found"`
+			}{
+				ID:    id,
+				Found: ok,
+			},
 		})
 	}
 }

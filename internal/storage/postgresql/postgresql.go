@@ -7,17 +7,12 @@ import (
 	"fmt"
 
 	"github.com/haadi-coder/bookmark-manager/internal/model"
+	"github.com/haadi-coder/bookmark-manager/internal/storage"
 
 	"github.com/lib/pq"
-	_ "github.com/lib/pq"
 )
 
 const UniqueViolation = "23505"
-
-var (
-	ErrNotFound = errors.New("bookmark not found")
-	ErrExists   = errors.New("bookmark for this url already exists")
-)
 
 type PostgresqlStorage struct {
 	db *sql.DB
@@ -79,7 +74,7 @@ func (s *PostgresqlStorage) CreateBookmark(ctx context.Context, title, url strin
 	err := row.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt)
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == UniqueViolation {
-			return nil, ErrExists
+			return nil, storage.ErrExists
 		}
 
 		return nil, fmt.Errorf("failed to create bookmark: %w", err)
@@ -96,7 +91,7 @@ func (s *PostgresqlStorage) EditBookmark(ctx context.Context, id int, title, url
 	err := row.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
+			return nil, storage.ErrNotFound
 		}
 
 		return nil, fmt.Errorf("failed to edit bookmark: %w", err)
@@ -117,19 +112,24 @@ func (s *PostgresqlStorage) DeleteBookmark(ctx context.Context, id int) error {
 	}
 
 	if rowAffected == 0 {
-		return ErrNotFound
+		return storage.ErrNotFound
 	}
 
 	return nil
 }
 
-func (s *PostgresqlStorage) BookmarkExist(ctx context.Context, url string) (bool, error) {
+func (s *PostgresqlStorage) BookmarkExist(ctx context.Context, url string) (int, bool, error) {
+	var id int
 	var found bool
 
-	err := s.db.QueryRowContext(ctx, "SELECT EXISTS (SELECT 1 FROM bookmarks WHERE url=$1)", url).Scan(&found)
+	err := s.db.QueryRowContext(ctx, `SELECT id, true FROM bookmarks WHERE url = $1 LIMIT 1`, url).Scan(&id, &found)
 	if err != nil {
-		return false, fmt.Errorf("failed to find bookmark: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, false, nil
+		}
+
+		return 0, false, fmt.Errorf("failed to find bookmark: %w", err)
 	}
 
-	return found, nil
+	return id, found, nil
 }

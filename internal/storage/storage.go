@@ -2,14 +2,14 @@ package storage
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/haadi-coder/bookmark-manager/internal/model"
-	"github.com/haadi-coder/bookmark-manager/internal/storage/postgresql"
 )
 
-const (
-	Postgresql = "postgresql"
+var (
+	ErrNotFound = errors.New("bookmark not found")
+	ErrExists   = errors.New("bookmark for this url already exists")
 )
 
 type Storage interface {
@@ -17,19 +17,5 @@ type Storage interface {
 	CreateBookmark(ctx context.Context, title, url string) (*model.Bookmark, error)
 	EditBookmark(ctx context.Context, id int, title, url string) (*model.Bookmark, error)
 	DeleteBookmark(ctx context.Context, id int) error
-	BookmarkExist(ctx context.Context, url string) (bool, error)
-}
-
-type Config struct {
-	Type string
-	Path string
-}
-
-func New(cfg *Config) (Storage, error) {
-	switch cfg.Type {
-	case Postgresql:
-		return postgresql.New(cfg.Path)
-	default:
-		return nil, fmt.Errorf("unknown storage type: %s", cfg.Type)
-	}
+	BookmarkExist(ctx context.Context, url string) (int, bool, error)
 }

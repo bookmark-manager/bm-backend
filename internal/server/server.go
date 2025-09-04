@@ -14,7 +14,8 @@ import (
 )
 
 var (
-	AllowedOrigins = []string{"http://localhost:5173"}
+	// AllowedOrigins = []string{"http://localhost:5173", "moz-extension://a5735a5e-b272-46c1-b83f-729c06e1ea79"}
+	AllowedOrigins = []string{"*"}
 	AllowedMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 )
 

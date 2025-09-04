@@ -8,7 +8,7 @@ import (
 	"github.com/haadi-coder/bookmark-manager/internal/config"
 	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
 	"github.com/haadi-coder/bookmark-manager/internal/server"
-	"github.com/haadi-coder/bookmark-manager/internal/storage"
+	"github.com/haadi-coder/bookmark-manager/internal/storage/postgresql"
 )
 
 func main() {
@@ -26,16 +26,8 @@ func run() error {
 
 	slog.Info("starting bookmark-manager")
 
-	storage, err := storage.New(&storage.Config{
-		Type: storage.Postgresql,
-		Path: fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
-			cfg.DBUser,
-			cfg.DBPassword,
-			cfg.DBHost,
-			cfg.DBPort,
-			cfg.DBName,
-		),
-	})
+	dbPath := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName)
+	storage, err := postgresql.New(dbPath)
 	if err != nil {
 		slog.Error("failed to init storage", logger.Error(err))
 		return fmt.Errorf("failed to init storage: %w", err)
