@@ -4,19 +4,29 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-chi/httprate"
 	"github.com/haadi-coder/bookmark-manager/internal/config"
 	"github.com/haadi-coder/bookmark-manager/internal/server/handler"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
 
+const (
+	RequestsLimit = 5
+	LimitWindow   = time.Second
+)
+
 var (
-	// AllowedOrigins = []string{"http://localhost:5173", "moz-extension://a5735a5e-b272-46c1-b83f-729c06e1ea79"}
+	// AllowedOrigins: Using wildcard "*" is intentional to support local development
+	// and browser extensions, whose origins are dynamic and cannot be predetermined
+	// (e.g., Chrome/Firefox extension UUIDs change per installation).
+	// While this weakens CORS security, the trade-off is acceptable in a local/development context.
 	AllowedOrigins = []string{"*"}
-	AllowedMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
+	AllowedMethods = []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"}
 )
 
 type Server struct {
@@ -29,10 +39,22 @@ func New(cfg config.Config, storage storage.Storage) *Server {
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
+	router.Use(middleware.RealIP)
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: AllowedOrigins,
 		AllowedMethods: AllowedMethods,
 	}))
+	router.Use(httprate.Limit(
+		RequestsLimit,
+		LimitWindow,
+		httprate.WithKeyFuncs(httprate.KeyByEndpoint),
+		httprate.WithResponseHeaders(httprate.ResponseHeaders{
+			Limit:      "X-RateLimit-Limit",
+			Remaining:  "X-RateLimit-Remaining",
+			Reset:      "X-RateLimit-Reset",
+			RetryAfter: "Retry-After",
+		}),
+	))
 
 	router.Get("/bookmarks", handler.GetBookmarks(context.Background(), storage))
 	router.Post("/bookmarks", handler.CreateBookmark(context.Background(), storage))
@@ -40,9 +62,10 @@ func New(cfg config.Config, storage storage.Storage) *Server {
 	router.Delete("/bookmarks", handler.DeleteBookmark(context.Background(), storage))
 	router.Get("/bookmarks/exists", handler.CheckBookmark(context.Background(), storage))
 	router.Get("/bookmarks/export/html", handler.NetscapeBookmarks(context.Background(), storage))
+	router.Get("/health", handler.CheckHealth())
 
 	s := &http.Server{
-		Addr:         cfg.HttpAddress,
+		Addr:         cfg.Address(),
 		Handler:      router,
 		ReadTimeout:  cfg.HttpTimeout,
 		WriteTimeout: cfg.HttpTimeout,

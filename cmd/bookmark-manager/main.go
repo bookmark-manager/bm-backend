@@ -12,37 +12,38 @@ import (
 )
 
 func main() {
+	slog.Info("starting bookmark-manager")
+
 	if err := run(); err != nil {
-		fmt.Println(err)
+		slog.Error("failed to start bookmark-manager", logger.Error(err))
 		os.Exit(1)
 	}
+
+	slog.Info("server stopped")
 }
 
 func run() error {
-	cfg := config.MustLoad()
-
-	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	slog.SetDefault(log)
-
-	slog.Info("starting bookmark-manager")
-
-	dbPath := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName)
-	storage, err := postgresql.New(dbPath)
+	cfg, err := config.Load()
 	if err != nil {
-		slog.Error("failed to init storage", logger.Error(err))
+		return fmt.Errorf("failed to initialize application: %w", err)
+	}
+
+	setupLogger()
+
+	storage, err := postgresql.New(cfg.DSN())
+	if err != nil {
 		return fmt.Errorf("failed to init storage: %w", err)
 	}
 
 	server := server.New(*cfg, storage)
-
-	slog.Info("starting HTTP server", slog.String("address", server.Addr))
-
 	if err = server.Start(); err != nil {
-		slog.Error("failed to start server", logger.Error(err))
 		return err
 	}
 
-	log.Info("server stopped")
-
 	return nil
+}
+
+func setupLogger() {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	slog.SetDefault(logger)
 }
