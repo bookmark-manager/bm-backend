@@ -30,13 +30,13 @@ type HttpConfig struct {
 func Load() (*Config, error) {
 	var cfg Config
 
-	if err := validateConfig(&cfg); err != nil {
-		return nil, fmt.Errorf("config validation failed: %w", err)
-	}
-
 	err := cleanenv.ReadEnv(&cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	if err := validateConfig(&cfg); err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 
 	return &cfg, nil
