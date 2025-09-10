@@ -28,8 +28,8 @@ func (p *ListOptions) Offset() int {
 }
 
 func ParseListOptions(r *http.Request) (*ListOptions, error) {
-	perPage := r.Header.Get("X-PerPage")
-	page := r.Header.Get("X-Page")
+	perPage := r.URL.Query().Get("per_page")
+	page := r.URL.Query().Get("page")
 	search := r.URL.Query().Get("search")
 
 	opts := &ListOptions{

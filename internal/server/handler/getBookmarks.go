@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
@@ -33,9 +34,9 @@ func GetBookmarks(ctx context.Context, store storage.Storage) http.HandlerFunc {
 
 		slog.Info("got bookmarks", slog.Any("bookmarks count", len(result)))
 
+		w.Header().Set("X-Total", strconv.Itoa(totalCount))
 		render.JSON(w, r, response.Response{
-			Data:       result,
-			TotalCount: totalCount,
+			Data: result,
 		})
 	}
 }

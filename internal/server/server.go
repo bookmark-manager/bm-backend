@@ -27,7 +27,7 @@ var (
 	// While this weakens CORS security, the trade-off is acceptable in a local/development context.
 	AllowedOrigins = []string{"*"}
 	AllowedMethods = []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"}
-	AllowedHeaders = []string{"X-PerPage", "X-Page"}
+	ExposedHeaders = []string{"X-Total"}
 )
 
 type Server struct {
@@ -44,7 +44,7 @@ func New(cfg config.Config, storage storage.Storage) *Server {
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: AllowedOrigins,
 		AllowedMethods: AllowedMethods,
-		AllowedHeaders: AllowedHeaders,
+		ExposedHeaders: ExposedHeaders,
 	}))
 	router.Use(httprate.Limit(
 		RequestsLimit,
