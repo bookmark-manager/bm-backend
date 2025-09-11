@@ -3,12 +3,14 @@ package server
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-chi/httplog/v3"
 	"github.com/go-chi/httprate"
 	"github.com/haadi-coder/bookmark-manager/internal/config"
 	"github.com/haadi-coder/bookmark-manager/internal/server/handler"
@@ -38,9 +40,18 @@ func New(cfg config.Config, storage storage.Storage) *Server {
 	router := chi.NewRouter()
 
 	router.Use(middleware.RequestID)
-	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.RealIP)
+	router.Use(httplog.RequestLogger(slog.Default(), &httplog.Options{
+		Level: slog.LevelInfo,
+		Schema: &httplog.Schema{
+			ErrorType:     "err_type",
+			ErrorMessage:  "err_Msg",
+			RequestBytes:  "req",
+			ResponseBytes: "resp",
+		},
+		RecoverPanics: true,
+	}))
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: AllowedOrigins,
 		AllowedMethods: AllowedMethods,
@@ -69,9 +80,9 @@ func New(cfg config.Config, storage storage.Storage) *Server {
 	s := &http.Server{
 		Addr:         cfg.Address(),
 		Handler:      router,
-		ReadTimeout:  cfg.HttpTimeout,
-		WriteTimeout: cfg.HttpTimeout,
-		IdleTimeout:  cfg.HttpIdleTimeout,
+		ReadTimeout:  cfg.Http.Timeout,
+		WriteTimeout: cfg.Http.Timeout,
+		IdleTimeout:  cfg.Http.IdleTimeout,
 	}
 
 	return &Server{

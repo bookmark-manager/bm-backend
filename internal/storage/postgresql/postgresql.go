@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 
 	"github.com/haadi-coder/bookmark-manager/internal/model"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
@@ -18,8 +19,8 @@ type PostgresqlStorage struct {
 	db *sql.DB
 }
 
-func New(path string) (*PostgresqlStorage, error) {
-	db, err := sql.Open("postgres", path)
+func New(path url.URL) (*PostgresqlStorage, error) {
+	db, err := sql.Open("postgres", path.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to open db connection: %w", err)
 	}

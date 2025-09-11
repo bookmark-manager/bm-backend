@@ -2,29 +2,33 @@ package config
 
 import (
 	"fmt"
+	"net"
+	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
 type Config struct {
-	DBConfig
-	HttpConfig
+	DB      DBConfig   `env-prefix:"BM_DB_"`
+	Http    HttpConfig `env-prefix:"BM_HTTP_"`
+	NoColor bool       `env:"BM_NO_COLOR" env-default:"false"`
 }
 
 type DBConfig struct {
-	DBHost     string `env:"BM_DB_HOST" env-default:"localhost"`
-	DBUser     string `env:"BM_DB_USER" env-required:"true"`
-	DBPassword string `env:"BM_DB_PASSWORD" env-required:"true"`
-	DBPort     int    `env:"BM_DB_PORT" env-default:"5432"`
-	DBName     string `env:"BM_DB_NAME" env-default:"bookmarks"`
+	Host     string `env:"HOST" env-default:"localhost"`
+	User     string `env:"USER" env-required:"true"`
+	Password string `env:"PASSWORD" env-required:"true"`
+	Port     int    `env:"PORT" env-default:"5432"`
+	Name     string `env:"NAME" env-default:"bookmarks"`
 }
 
 type HttpConfig struct {
-	HttpHost        string        `env:"BM_HTTP_HOST" env-default:"0.0.0.0"`
-	HttpPort        int           `env:"BM_HTTP_PORT" env-default:"8080"`
-	HttpIdleTimeout time.Duration `env:"BM_HTTP_IDLE_TIMEOUT" env-default:"60s"`
-	HttpTimeout     time.Duration `env:"BM_HTTP_TIMEOUT" env-default:"4s"`
+	Host        string        `env:"HOST" env-default:"0.0.0.0"`
+	Port        int           `env:"PORT" env-default:"8080"`
+	IdleTimeout time.Duration `env:"IDLE_TIMEOUT" env-default:"60s"`
+	Timeout     time.Duration `env:"TIMEOUT" env-default:"4s"`
 }
 
 func Load() (*Config, error) {
@@ -35,26 +39,32 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	if err := validateConfig(&cfg); err != nil {
+	if err := cfg.validateConfig(); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 
 	return &cfg, nil
 }
 
-func (c *Config) DSN() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", c.DBUser, c.DBPassword, c.DBHost, c.DBPort, c.DBName)
+func (c *Config) DSN() url.URL {
+	return url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(c.DB.User, c.DB.Password),
+		Host:     net.JoinHostPort(c.DB.Host, strconv.Itoa(c.DB.Port)),
+		Path:     c.DB.Name,
+		RawQuery: "sslmode=disable",
+	}
 }
 
 func (c *Config) Address() string {
-	return fmt.Sprintf("%s:%d", c.HttpHost, c.HttpPort)
+	return net.JoinHostPort(c.Http.Host, strconv.Itoa(c.Http.Port))
 }
 
-func validateConfig(cfg *Config) error {
-	if err := validatePort(cfg.DBPort); err != nil {
+func (c *Config) validateConfig() error {
+	if err := validatePort(c.DB.Port); err != nil {
 		return fmt.Errorf("invalid database port (BM_DB_PORT): %w", err)
 	}
-	if err := validatePort(cfg.HttpPort); err != nil {
+	if err := validatePort(c.Http.Port); err != nil {
 		return fmt.Errorf("invalid http server port (BM_HTTP_PORT): %w", err)
 	}
 
