@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 
 	"github.com/haadi-coder/bookmark-manager/internal/model"
@@ -133,4 +134,13 @@ func (s *PostgresqlStorage) BookmarkExist(ctx context.Context, url string) (int,
 	}
 
 	return id, found, nil
+}
+
+func (s *PostgresqlStorage) Close() error {
+	slog.Info("closing database connection")
+
+	if s.db != nil {
+		return s.db.Close()
+	}
+	return nil
 }

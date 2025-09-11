@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,7 +13,6 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httplog/v3"
 	"github.com/go-chi/httprate"
-	"github.com/haadi-coder/bookmark-manager/internal/config"
 	"github.com/haadi-coder/bookmark-manager/internal/server/handler"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
@@ -33,17 +33,16 @@ var (
 )
 
 type Server struct {
-	*http.Server
+	server *http.Server
 }
 
-func New(cfg config.Config, storage storage.Storage) *Server {
+func New(ctx context.Context, adress string, timeout, idleTimeout time.Duration, storage storage.Storage) *Server {
 	router := chi.NewRouter()
 
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.RealIP)
 	router.Use(httplog.RequestLogger(slog.Default(), &httplog.Options{
-		Level: slog.LevelInfo,
 		Schema: &httplog.Schema{
 			ErrorType:     "err_type",
 			ErrorMessage:  "err_Msg",
@@ -69,31 +68,48 @@ func New(cfg config.Config, storage storage.Storage) *Server {
 		}),
 	))
 
-	router.Get("/bookmarks", handler.GetBookmarks(context.Background(), storage))
-	router.Post("/bookmarks", handler.CreateBookmark(context.Background(), storage))
-	router.Patch("/bookmarks", handler.EditBookmark(context.Background(), storage))
-	router.Delete("/bookmarks", handler.DeleteBookmark(context.Background(), storage))
-	router.Get("/bookmarks/exists", handler.CheckBookmark(context.Background(), storage))
-	router.Get("/bookmarks/export/html", handler.NetscapeBookmarks(context.Background(), storage))
+	router.Get("/bookmarks", handler.GetBookmarks(ctx, storage))
+	router.Post("/bookmarks", handler.CreateBookmark(ctx, storage))
+	router.Patch("/bookmarks", handler.EditBookmark(ctx, storage))
+	router.Delete("/bookmarks", handler.DeleteBookmark(ctx, storage))
+	router.Get("/bookmarks/exists", handler.CheckBookmark(ctx, storage))
+	router.Get("/bookmarks/export/html", handler.NetscapeBookmarks(ctx, storage))
 	router.Get("/health", handler.CheckHealth())
 
 	s := &http.Server{
-		Addr:         cfg.Address(),
+		Addr:         adress,
 		Handler:      router,
-		ReadTimeout:  cfg.Http.Timeout,
-		WriteTimeout: cfg.Http.Timeout,
-		IdleTimeout:  cfg.Http.IdleTimeout,
+		ReadTimeout:  timeout,
+		WriteTimeout: timeout,
+		IdleTimeout:  idleTimeout,
 	}
 
 	return &Server{
-		Server: s,
+		server: s,
 	}
 }
 
 func (s *Server) Start() error {
-	if err := s.ListenAndServe(); err != nil {
+	slog.Info("HTTP server starting", slog.String("address", s.server.Addr))
+
+	if err := s.server.ListenAndServe(); err != nil {
+		if errors.Is(err, http.ErrServerClosed) {
+			slog.Info("HTTP server closed")
+			return nil
+		}
 		return fmt.Errorf("failed to start server: %w", err)
 	}
 
+	return nil
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	slog.Info("shutting down HTTP server")
+
+	if err := s.server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("failed to shutdown HTTP server: %w", err)
+	}
+
+	slog.Info("HTTP server shutdown completed")
 	return nil
 }

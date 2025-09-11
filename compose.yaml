@@ -36,7 +36,14 @@ services:
       BM_DB_USER: ${BM_DB_USER}
       BM_DB_PASSWORD: ${BM_DB_PASSWORD}
       BM_DB_NAME: bookmarks
-      BM_NO_COLOR: false
+
+      BM_HTTP_HOST: ${BM_HTTP_HOST}
+      BM_HTTP_PORT: ${BM_HTTP_PORT}
+      BM_HTTP_TIMEOUT: ${BM_HTTP_TIMEOUT}
+      BM_HTTP_IDLE_TIMEOUT: ${BM_HTTP_IDLE_TIMEOUT}
+
+      BM_LOGGER_NO_COLOR: ${BM_LOGGER_NO_COLOR}
+      BM_LOGGER_DEBUG: ${BM_LOGGER_DEBUG}
     depends_on:
       migrate:
         condition: service_completed_successfully

@@ -11,9 +11,9 @@ import (
 )
 
 type Config struct {
-	DB      DBConfig   `env-prefix:"BM_DB_"`
-	Http    HttpConfig `env-prefix:"BM_HTTP_"`
-	NoColor bool       `env:"BM_NO_COLOR" env-default:"false"`
+	DB     DBConfig     `env-prefix:"BM_DB_"`
+	Http   HttpConfig   `env-prefix:"BM_HTTP_"`
+	Logger LoggerConfig `env-prefix:"BM_LOGGER"`
 }
 
 type DBConfig struct {
@@ -29,6 +29,11 @@ type HttpConfig struct {
 	Port        int           `env:"PORT" env-default:"8080"`
 	IdleTimeout time.Duration `env:"IDLE_TIMEOUT" env-default:"60s"`
 	Timeout     time.Duration `env:"TIMEOUT" env-default:"4s"`
+}
+
+type LoggerConfig struct {
+	NoColor bool `env:"NO_COLOR" env-default:"false"`
+	Debug   bool `env:"DEBUG" env-default:"true"`
 }
 
 func Load() (*Config, error) {

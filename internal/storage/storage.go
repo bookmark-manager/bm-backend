@@ -18,4 +18,5 @@ type Storage interface {
 	EditBookmark(ctx context.Context, id int, title, url string) (*model.Bookmark, error)
 	DeleteBookmark(ctx context.Context, id int) error
 	BookmarkExist(ctx context.Context, url string) (int, bool, error)
+	Close() error
 }
