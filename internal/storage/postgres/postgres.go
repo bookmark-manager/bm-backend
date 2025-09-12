@@ -1,4 +1,4 @@
-package postgresql
+package postgres
 
 import (
 	"context"
@@ -16,22 +16,22 @@ import (
 
 const UniqueViolation = "23505"
 
-type PostgresqlStorage struct {
+type PostgresStorage struct {
 	db *sql.DB
 }
 
-func New(path url.URL) (*PostgresqlStorage, error) {
+func New(path url.URL) (*PostgresStorage, error) {
 	db, err := sql.Open("postgres", path.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to open db connection: %w", err)
 	}
 
-	return &PostgresqlStorage{
+	return &PostgresStorage{
 		db: db,
 	}, nil
 }
 
-func (s *PostgresqlStorage) GetBookmarks(ctx context.Context, limit, offset int, search string) ([]*model.Bookmark, int, error) {
+func (s *PostgresStorage) GetBookmarks(ctx context.Context, limit, offset int, search string) ([]*model.Bookmark, int, error) {
 	var totalCount int
 	var countErr error
 
@@ -68,7 +68,7 @@ func (s *PostgresqlStorage) GetBookmarks(ctx context.Context, limit, offset int,
 	return bookmarks, totalCount, nil
 }
 
-func (s *PostgresqlStorage) CreateBookmark(ctx context.Context, title, url string) (*model.Bookmark, error) {
+func (s *PostgresStorage) CreateBookmark(ctx context.Context, title, url string) (*model.Bookmark, error) {
 	var bm model.Bookmark
 
 	row := s.db.QueryRowContext(ctx, "INSERT INTO bookmarks (title, url) VALUES($1, $2) RETURNING id, url, title, created_at, updated_at", title, url)
@@ -85,7 +85,7 @@ func (s *PostgresqlStorage) CreateBookmark(ctx context.Context, title, url strin
 	return &bm, nil
 }
 
-func (s *PostgresqlStorage) EditBookmark(ctx context.Context, id int, title, url string) (*model.Bookmark, error) {
+func (s *PostgresStorage) EditBookmark(ctx context.Context, id int, title, url string) (*model.Bookmark, error) {
 	var bm model.Bookmark
 
 	row := s.db.QueryRowContext(ctx, "UPDATE bookmarks SET title=$1, url=$2, updated_at=NOW() WHERE id=$3 RETURNING id, url, title, created_at, updated_at", title, url, id)
@@ -102,7 +102,7 @@ func (s *PostgresqlStorage) EditBookmark(ctx context.Context, id int, title, url
 	return &bm, nil
 }
 
-func (s *PostgresqlStorage) DeleteBookmark(ctx context.Context, id int) error {
+func (s *PostgresStorage) DeleteBookmark(ctx context.Context, id int) error {
 	result, err := s.db.ExecContext(ctx, "DELETE FROM bookmarks WHERE id=$1", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete bookmark: %w", err)
@@ -120,7 +120,7 @@ func (s *PostgresqlStorage) DeleteBookmark(ctx context.Context, id int) error {
 	return nil
 }
 
-func (s *PostgresqlStorage) BookmarkExist(ctx context.Context, url string) (int, bool, error) {
+func (s *PostgresStorage) BookmarkExist(ctx context.Context, url string) (int, bool, error) {
 	var id int
 	var found bool
 
@@ -136,7 +136,15 @@ func (s *PostgresqlStorage) BookmarkExist(ctx context.Context, url string) (int,
 	return id, found, nil
 }
 
-func (s *PostgresqlStorage) Close() error {
+func (s *PostgresStorage) Ping(ctx context.Context) error {
+	if err := s.db.PingContext(ctx); err != nil {
+		return fmt.Errorf("dd ping failed: %w", err)
+	}
+
+	return nil
+}
+
+func (s *PostgresStorage) Close() error {
 	slog.Info("closing database connection")
 
 	if s.db != nil {

@@ -9,10 +9,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/haadi-coder/bookmark-manager/internal/api"
 	"github.com/haadi-coder/bookmark-manager/internal/config"
 	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
-	"github.com/haadi-coder/bookmark-manager/internal/server"
-	"github.com/haadi-coder/bookmark-manager/internal/storage/postgresql"
+	"github.com/haadi-coder/bookmark-manager/internal/storage/postgres"
+
 	"github.com/lmittmann/tint"
 )
 
@@ -39,7 +40,7 @@ func main() {
 }
 
 func run(ctx context.Context, cfg *config.Config) error {
-	storage, err := postgresql.New(cfg.DSN())
+	storage, err := postgres.New(cfg.DSN())
 	if err != nil {
 		return fmt.Errorf("failed to init storage: %w", err)
 	}
@@ -51,26 +52,10 @@ func run(ctx context.Context, cfg *config.Config) error {
 		}
 	}()
 
-	server := server.New(ctx, cfg.Address(), cfg.Http.Timeout, cfg.Http.IdleTimeout, storage)
+	server := api.NewServer(ctx, cfg.Address(), cfg.Http.Timeout, cfg.Http.IdleTimeout, storage)
 
-	serverErr := make(chan error, 1)
-	go func() {
-		serverErr <- server.Start()
-	}()
-
-	select {
-	case err := <-serverErr:
-		if err != nil {
-			return fmt.Errorf("failed to start http server: %w", err)
-		}
-
-	case <-ctx.Done():
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer shutdownCancel()
-
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			return fmt.Errorf("failed to shutdown server gracefully: %w", err)
-		}
+	if err := server.Run(ctx); err != nil {
+		return fmt.Errorf("failed to run server: %w", err)
 	}
 
 	return nil

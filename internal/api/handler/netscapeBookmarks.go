@@ -8,8 +8,8 @@ import (
 
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
+	"github.com/haadi-coder/bookmark-manager/internal/api/response"
 	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
-	"github.com/haadi-coder/bookmark-manager/internal/server/response"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 	"github.com/virtualtam/netscape-go"
 	"github.com/virtualtam/netscape-go/types"

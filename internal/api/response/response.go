@@ -10,3 +10,12 @@ func Error(msg string) *Response {
 		Error: msg,
 	}
 }
+
+type HealthResponse struct {
+	Status string       `json:"status"`
+	Checks HealthChecks `json:"checks"`
+}
+
+type HealthChecks struct {
+	Postgres string `json:"postgres"`
+}

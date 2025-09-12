@@ -10,8 +10,8 @@ import (
 	"github.com/go-chi/render"
 
 	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
-	"github.com/haadi-coder/bookmark-manager/internal/server/request"
-	"github.com/haadi-coder/bookmark-manager/internal/server/response"
+	"github.com/haadi-coder/bookmark-manager/internal/api/request"
+	"github.com/haadi-coder/bookmark-manager/internal/api/response"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
 

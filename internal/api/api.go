@@ -1,8 +1,7 @@
-package server
+package api
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -13,30 +12,26 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httplog/v3"
 	"github.com/go-chi/httprate"
-	"github.com/haadi-coder/bookmark-manager/internal/server/handler"
+	"github.com/haadi-coder/bookmark-manager/internal/api/handler"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
 
+// Переименовать пакет в api
 const (
-	RequestsLimit = 5
-	LimitWindow   = time.Second
+	reqLimit  = 5
+	reqWindow = time.Second
 )
 
-var (
-	// AllowedOrigins: Using wildcard "*" is intentional to support local development
-	// and browser extensions, whose origins are dynamic and cannot be predetermined
-	// (e.g., Chrome/Firefox extension UUIDs change per installation).
-	// While this weakens CORS security, the trade-off is acceptable in a local/development context.
-	AllowedOrigins = []string{"*"}
-	AllowedMethods = []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"}
-	ExposedHeaders = []string{"X-Total"}
-)
+// Using wildcard "*" is intentional to support local development
+// and browser extensions, whose origins are dynamic and cannot be predetermined
+// (e.g., Chrome/Firefox extension UUIDs change per installation).
+// While this weakens CORS security, the trade-off is acceptable in a local/development context.
 
 type Server struct {
 	server *http.Server
 }
 
-func New(ctx context.Context, adress string, timeout, idleTimeout time.Duration, storage storage.Storage) *Server {
+func NewServer(ctx context.Context, adress string, timeout, idleTimeout time.Duration, storage storage.Storage) *Server {
 	router := chi.NewRouter()
 
 	router.Use(middleware.RequestID)
@@ -52,13 +47,13 @@ func New(ctx context.Context, adress string, timeout, idleTimeout time.Duration,
 		RecoverPanics: true,
 	}))
 	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins: AllowedOrigins,
-		AllowedMethods: AllowedMethods,
-		ExposedHeaders: ExposedHeaders,
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
+		ExposedHeaders: []string{"X-Total"},
 	}))
 	router.Use(httprate.Limit(
-		RequestsLimit,
-		LimitWindow,
+		reqLimit,
+		reqWindow,
 		httprate.WithKeyFuncs(httprate.KeyByEndpoint),
 		httprate.WithResponseHeaders(httprate.ResponseHeaders{
 			Limit:      "X-RateLimit-Limit",
@@ -74,7 +69,7 @@ func New(ctx context.Context, adress string, timeout, idleTimeout time.Duration,
 	router.Delete("/bookmarks", handler.DeleteBookmark(ctx, storage))
 	router.Get("/bookmarks/exists", handler.CheckBookmark(ctx, storage))
 	router.Get("/bookmarks/export/html", handler.NetscapeBookmarks(ctx, storage))
-	router.Get("/health", handler.CheckHealth())
+	router.Get("/health", handler.CheckHealth(storage.Ping))
 
 	s := &http.Server{
 		Addr:         adress,
@@ -89,27 +84,28 @@ func New(ctx context.Context, adress string, timeout, idleTimeout time.Duration,
 	}
 }
 
-func (s *Server) Start() error {
+func (s *Server) Run(ctx context.Context) error {
 	slog.Info("HTTP server starting", slog.String("address", s.server.Addr))
 
-	if err := s.server.ListenAndServe(); err != nil {
-		if errors.Is(err, http.ErrServerClosed) {
-			slog.Info("HTTP server closed")
-			return nil
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- s.server.ListenAndServe()
+	}()
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			return fmt.Errorf("failed to start http server: %w", err)
 		}
-		return fmt.Errorf("failed to start server: %w", err)
+
+	case <-ctx.Done():
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+
+		if err := s.server.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("failed to shutdown server gracefully: %w", err)
+		}
 	}
 
-	return nil
-}
-
-func (s *Server) Shutdown(ctx context.Context) error {
-	slog.Info("shutting down HTTP server")
-
-	if err := s.server.Shutdown(ctx); err != nil {
-		return fmt.Errorf("failed to shutdown HTTP server: %w", err)
-	}
-
-	slog.Info("HTTP server shutdown completed")
 	return nil
 }
