@@ -39,8 +39,7 @@ type LoggerConfig struct {
 func Load() (*Config, error) {
 	var cfg Config
 
-	err := cleanenv.ReadEnv(&cfg)
-	if err != nil {
+	if err := cleanenv.ReadEnv(&cfg); err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 

@@ -46,7 +46,6 @@ func run(ctx context.Context, cfg *config.Config) error {
 	}
 
 	defer func() {
-		slog.Info("closing database connection")
 		if closeErr := storage.Close(); closeErr != nil {
 			slog.Error("failed to close database connection", logger.Error(closeErr))
 		}
@@ -62,15 +61,13 @@ func run(ctx context.Context, cfg *config.Config) error {
 }
 
 func setupLogger(cfg *config.Config) {
-	w := os.Stdout
-
 	level := slog.LevelInfo
 	if cfg.Logger.Debug {
 		level = slog.LevelDebug
 	}
 
 	logger := slog.New(tint.NewHandler(
-		w,
+		os.Stdout,
 		&tint.Options{
 			Level:      level,
 			TimeFormat: time.Kitchen,
