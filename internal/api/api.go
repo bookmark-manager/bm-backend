@@ -61,13 +61,15 @@ func NewServer(ctx context.Context, adress string, timeout, idleTimeout time.Dur
 		}),
 	))
 
-	router.Get("/bookmarks", handler.GetBookmarks(ctx, storage))
-	router.Post("/bookmarks", handler.CreateBookmark(ctx, storage))
-	router.Patch("/bookmarks/{id}", handler.EditBookmark(ctx, storage))
-	router.Delete("/bookmarks/{id}", handler.DeleteBookmark(ctx, storage))
-	router.Get("/bookmarks/exists", handler.CheckBookmark(ctx, storage))
-	router.Get("/bookmarks/export/html", handler.NetscapeBookmarks(ctx, storage))
-	router.Get("/health", handler.CheckHealth(storage.Ping))
+	router.Route("/bookmarks", func(r chi.Router) {
+		r.Get("/", handler.GetBookmarks(ctx, storage))
+		r.Post("/", handler.CreateBookmark(ctx, storage))
+		r.Patch("/{id}", handler.EditBookmark(ctx, storage))
+		r.Delete("/{id}", handler.DeleteBookmark(ctx, storage))
+		r.Get("/exists", handler.CheckBookmark(ctx, storage))
+		r.Get("/export/html", handler.NetscapeBookmarks(ctx, storage))
+		r.Get("/health", handler.CheckHealth(storage.Ping))
+	})
 
 	s := &http.Server{
 		Addr:         adress,
