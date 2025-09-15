@@ -7,14 +7,14 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"time"
 
 	"github.com/haadi-coder/bookmark-manager/internal/model"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 
+	sq "github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
 )
-
-const uniqueViolation = "23505"
 
 type PostgresStorage struct {
 	db *sql.DB
@@ -26,39 +26,49 @@ func New(path url.URL) (*PostgresStorage, error) {
 		return nil, fmt.Errorf("failed to open db connection: %w", err)
 	}
 
+	db.SetConnMaxLifetime(10 * time.Second)
+	db.SetMaxOpenConns(3)
+	db.SetMaxIdleConns(3)
+
 	return &PostgresStorage{
 		db: db,
 	}, nil
 }
 
 func (s *PostgresStorage) GetBookmarks(ctx context.Context, limit, offset int, search string) ([]*model.Bookmark, int, error) {
-	var totalCount int
-	var countErr error
-
 	var rows *sql.Rows
-	var queryErr error
+
+	stmt := sq.
+		Select("*", "COUNT(*) OVER() AS total_count").
+		From("bookmarks").
+		OrderBy("created_at DESC").
+		Limit(uint64(limit)).
+		Offset(uint64(offset)).
+		PlaceholderFormat(sq.Dollar).
+		RunWith(s.db)
 
 	if search != "" {
-		countErr = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM bookmarks WHERE url ILIKE '%' || $1 || '%' OR title ILIKE '%' || $1 || '%'", search).Scan(&totalCount)
-		rows, queryErr = s.db.QueryContext(ctx, "SELECT * FROM bookmarks WHERE url ILIKE '%' || $1 || '%'  OR title ILIKE '%' || $1 || '%'  ORDER BY created_at DESC LIMIT $2 OFFSET $3", search, limit, offset)
-	} else {
-		countErr = s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM bookmarks").Scan(&totalCount)
-		rows, queryErr = s.db.QueryContext(ctx, "SELECT * FROM bookmarks ORDER BY created_at DESC LIMIT $1 OFFSET $2", limit, offset)
+		stmt = stmt.Where(
+			sq.Or{
+				sq.ILike{"url": "%" + search + "%"},
+				sq.ILike{"title": "%" + search + "%"},
+			})
 	}
 
-	if queryErr != nil {
-		return nil, 0, fmt.Errorf("failed to get bookmarks rows: %w", queryErr)
+	rows, err := stmt.QueryContext(ctx)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get bookmarks rows: %w", err)
 	}
+	defer func() {
+		_ = rows.Close()
+	}()
 
-	if countErr != nil {
-		return nil, 0, fmt.Errorf("failed to get total count: %w", countErr)
-	}
-
+	var totalCount int
 	bookmarks := []*model.Bookmark{}
 	for rows.Next() {
 		var bm model.Bookmark
 
-		if err := rows.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt); err != nil {
+		if err := rows.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt, &totalCount); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan bookmark: %w", err)
 		}
 
@@ -69,12 +79,20 @@ func (s *PostgresStorage) GetBookmarks(ctx context.Context, limit, offset int, s
 }
 
 func (s *PostgresStorage) CreateBookmark(ctx context.Context, title, url string) (*model.Bookmark, error) {
+	const uniqueViolation = "23505"
+
+	stmt := sq.
+		Insert("bookmarks").
+		Columns("title", "url").
+		Values(title, url).
+		Suffix("RETURNING id, url, title, created_at, updated_at").
+		PlaceholderFormat(sq.Dollar).
+		RunWith(s.db)
+
+	row := stmt.QueryRowContext(ctx)
+
 	var bm model.Bookmark
-
-	row := s.db.QueryRowContext(ctx, "INSERT INTO bookmarks (title, url) VALUES($1, $2) RETURNING id, url, title, created_at, updated_at", title, url)
-
-	err := row.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt)
-	if err != nil {
+	if err := row.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt); err != nil {
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == uniqueViolation {
 			return nil, storage.ErrExists
 		}
@@ -86,12 +104,20 @@ func (s *PostgresStorage) CreateBookmark(ctx context.Context, title, url string)
 }
 
 func (s *PostgresStorage) EditBookmark(ctx context.Context, id int, title, url string) (*model.Bookmark, error) {
+	stmt := sq.
+		Update("bookmarks").
+		Set("title", title).
+		Set("url", url).
+		Set("updated_at", sq.Expr("NOW()")).
+		Where(sq.Eq{"id": id}).
+		Suffix("RETURNING id, url, title, created_at, updated_at").
+		PlaceholderFormat(sq.Dollar).
+		RunWith(s.db)
+
+	row := stmt.QueryRowContext(ctx)
+
 	var bm model.Bookmark
-
-	row := s.db.QueryRowContext(ctx, "UPDATE bookmarks SET title=$1, url=$2, updated_at=NOW() WHERE id=$3 RETURNING id, url, title, created_at, updated_at", title, url, id)
-
-	err := row.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt)
-	if err != nil {
+	if err := row.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, storage.ErrNotFound
 		}
@@ -103,7 +129,13 @@ func (s *PostgresStorage) EditBookmark(ctx context.Context, id int, title, url s
 }
 
 func (s *PostgresStorage) DeleteBookmark(ctx context.Context, id int) error {
-	result, err := s.db.ExecContext(ctx, "DELETE FROM bookmarks WHERE id=$1", id)
+	stmt := sq.
+		Delete("bookmarks").
+		Where(sq.Eq{"id": id}).
+		PlaceholderFormat(sq.Dollar).
+		RunWith(s.db)
+
+	result, err := stmt.ExecContext(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to delete bookmark: %w", err)
 	}
@@ -124,7 +156,15 @@ func (s *PostgresStorage) BookmarkExist(ctx context.Context, url string) (int, b
 	var id int
 	var found bool
 
-	err := s.db.QueryRowContext(ctx, `SELECT id, true FROM bookmarks WHERE url = $1 LIMIT 1`, url).Scan(&id, &found)
+	stmt := sq.
+		Select("id", "true").
+		From("bookmarks").
+		Where(sq.Eq{"url": url}).
+		Limit(1).
+		PlaceholderFormat(sq.Dollar).
+		RunWith(s.db)
+
+	err := stmt.QueryRowContext(ctx).Scan(&id, &found)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, false, nil

@@ -7,7 +7,3 @@ CREATE TABLE bookmarks (
 );
 
 CREATE INDEX idx_bookmarks_url ON bookmarks(url);
-
-
-CREATE INDEX idx_bookmarks_created_at ON bookmarks(created_at);
-    
