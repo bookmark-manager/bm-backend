@@ -9,9 +9,9 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
 
-	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
 	"github.com/haadi-coder/bookmark-manager/internal/api/request"
 	"github.com/haadi-coder/bookmark-manager/internal/api/response"
+	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
 
@@ -28,6 +28,7 @@ func GetBookmarks(ctx context.Context, store storage.Storage) http.HandlerFunc {
 		if err != nil {
 			slog.Error("failed to get bookmarks from db", logger.Error(err))
 
+			render.Status(r, http.StatusInternalServerError)
 			render.JSON(w, r, response.Error("failed to get bookmarks"))
 			return
 		}

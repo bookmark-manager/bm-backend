@@ -40,7 +40,7 @@ func main() {
 }
 
 func run(ctx context.Context, cfg *config.Config) error {
-	storage, err := postgres.New(cfg.DSN())
+	storage, err := postgres.New(cfg.DB.DSN())
 	if err != nil {
 		return fmt.Errorf("failed to init storage: %w", err)
 	}
@@ -51,7 +51,7 @@ func run(ctx context.Context, cfg *config.Config) error {
 		}
 	}()
 
-	server := api.NewServer(ctx, cfg.Address(), cfg.Http.Timeout, cfg.Http.IdleTimeout, storage)
+	server := api.NewServer(ctx, cfg.Http.Address(), cfg.Http.Timeout, cfg.Http.IdleTimeout, storage)
 
 	if err := server.Run(ctx); err != nil {
 		return fmt.Errorf("failed to run server: %w", err)
@@ -62,7 +62,7 @@ func run(ctx context.Context, cfg *config.Config) error {
 
 func setupLogger(cfg *config.Config) {
 	level := slog.LevelInfo
-	if cfg.Logger.Debug {
+	if cfg.Debug {
 		level = slog.LevelDebug
 	}
 
@@ -71,7 +71,7 @@ func setupLogger(cfg *config.Config) {
 		&tint.Options{
 			Level:      level,
 			TimeFormat: time.Kitchen,
-			NoColor:    cfg.Logger.NoColor,
+			NoColor:    cfg.NoColor,
 		},
 	))
 	slog.SetDefault(logger)

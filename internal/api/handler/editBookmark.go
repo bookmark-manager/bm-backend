@@ -8,12 +8,13 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator"
-	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
 	"github.com/haadi-coder/bookmark-manager/internal/api/request"
 	"github.com/haadi-coder/bookmark-manager/internal/api/response"
+	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
 
@@ -40,7 +41,7 @@ func EditBookmark(ctx context.Context, store storage.Storage) http.HandlerFunc {
 			return
 		}
 
-		id := r.URL.Query().Get("id")
+		id := chi.URLParam(r, "id")
 		parsedId, err := strconv.Atoi(id)
 		if err != nil {
 			slog.Error("failed to get id from url", logger.Error(err))

@@ -31,19 +31,20 @@ services:
     ports:
       - '8080:8080'
     environment:
-      BM_DB_HOST: db
-      BM_DB_PORT: 5432
+      BM_DB_HOST: ${BM_DB_HOST}
+      BM_DB_PORT: ${BM_DB_PORT}
       BM_DB_USER: ${BM_DB_USER}
       BM_DB_PASSWORD: ${BM_DB_PASSWORD}
-      BM_DB_NAME: bookmarks
+      BM_DB_NAME: ${BM_DB_NAME}
+      BM_DB_SSL_MODE: ${BM_DB_SSL_MODE}
 
       BM_HTTP_HOST: ${BM_HTTP_HOST}
       BM_HTTP_PORT: ${BM_HTTP_PORT}
       BM_HTTP_TIMEOUT: ${BM_HTTP_TIMEOUT}
       BM_HTTP_IDLE_TIMEOUT: ${BM_HTTP_IDLE_TIMEOUT}
 
-      BM_LOGGER_NO_COLOR: ${BM_LOGGER_NO_COLOR}
-      BM_LOGGER_DEBUG: ${BM_LOGGER_DEBUG}
+      BM_NO_COLOR: ${BM_NO_COLOR}
+      BM_DEBUG: ${BM_DEBUG}
     depends_on:
       migrate:
         condition: service_completed_successfully

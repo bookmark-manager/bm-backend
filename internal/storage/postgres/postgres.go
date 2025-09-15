@@ -14,7 +14,7 @@ import (
 	"github.com/lib/pq"
 )
 
-const UniqueViolation = "23505"
+const uniqueViolation = "23505"
 
 type PostgresStorage struct {
 	db *sql.DB
@@ -75,7 +75,7 @@ func (s *PostgresStorage) CreateBookmark(ctx context.Context, title, url string)
 
 	err := row.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt)
 	if err != nil {
-		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == UniqueViolation {
+		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == uniqueViolation {
 			return nil, storage.ErrExists
 		}
 
@@ -138,7 +138,7 @@ func (s *PostgresStorage) BookmarkExist(ctx context.Context, url string) (int, b
 
 func (s *PostgresStorage) Ping(ctx context.Context) error {
 	if err := s.db.PingContext(ctx); err != nil {
-		return fmt.Errorf("dd ping failed: %w", err)
+		return fmt.Errorf("failed to ping db: %w", err)
 	}
 
 	return nil

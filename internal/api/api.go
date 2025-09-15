@@ -16,16 +16,10 @@ import (
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
 
-// Переименовать пакет в api
 const (
 	reqLimit  = 5
 	reqWindow = time.Second
 )
-
-// Using wildcard "*" is intentional to support local development
-// and browser extensions, whose origins are dynamic and cannot be predetermined
-// (e.g., Chrome/Firefox extension UUIDs change per installation).
-// While this weakens CORS security, the trade-off is acceptable in a local/development context.
 
 type Server struct {
 	server *http.Server
@@ -47,6 +41,10 @@ func NewServer(ctx context.Context, adress string, timeout, idleTimeout time.Dur
 		RecoverPanics: true,
 	}))
 	router.Use(cors.Handler(cors.Options{
+		// Using wildcard "*" is intentional to support local development
+		// and browser extensions, whose origins are dynamic and cannot be predetermined
+		// (e.g., Chrome/Firefox extension UUIDs change per installation).
+		// While this weakens CORS security, the trade-off is acceptable in a local/development context.
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 		ExposedHeaders: []string{"X-Total"},
@@ -65,8 +63,8 @@ func NewServer(ctx context.Context, adress string, timeout, idleTimeout time.Dur
 
 	router.Get("/bookmarks", handler.GetBookmarks(ctx, storage))
 	router.Post("/bookmarks", handler.CreateBookmark(ctx, storage))
-	router.Patch("/bookmarks", handler.EditBookmark(ctx, storage))
-	router.Delete("/bookmarks", handler.DeleteBookmark(ctx, storage))
+	router.Patch("/bookmarks/{id}", handler.EditBookmark(ctx, storage))
+	router.Delete("/bookmarks/{id}", handler.DeleteBookmark(ctx, storage))
 	router.Get("/bookmarks/exists", handler.CheckBookmark(ctx, storage))
 	router.Get("/bookmarks/export/html", handler.NetscapeBookmarks(ctx, storage))
 	router.Get("/health", handler.CheckHealth(storage.Ping))

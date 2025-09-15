@@ -7,10 +7,11 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
-	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
 	"github.com/haadi-coder/bookmark-manager/internal/api/response"
+	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
 
@@ -20,7 +21,7 @@ func DeleteBookmark(ctx context.Context, store storage.Storage) http.HandlerFunc
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 
-		id := r.URL.Query().Get("id")
+		id := chi.URLParam(r, "id")
 		parsedId, err := strconv.Atoi(id)
 		if err != nil {
 			slog.Error("failed to convert limit to integer", logger.Error(err))
