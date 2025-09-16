@@ -52,6 +52,7 @@ func (s *PostgresStorage) GetBookmarks(ctx context.Context, limit, offset int, s
 			sq.Or{
 				sq.ILike{"url": "%" + search + "%"},
 				sq.ILike{"title": "%" + search + "%"},
+				sq.Expr("similarity(title, ?) > ?", search, 0.2),
 			})
 	}
 

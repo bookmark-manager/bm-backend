@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 CREATE TABLE bookmarks (
     id SERIAL PRIMARY KEY,
     url TEXT NOT NULL UNIQUE,
@@ -6,4 +8,6 @@ CREATE TABLE bookmarks (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_bookmarks_url ON bookmarks(url);
+
+CREATE INDEX IF NOT EXISTS idx_bookmarks_title_trgm
+ON bookmarks USING GIN (title gin_trgm_ops);
