@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 	"strconv"
 )
 
@@ -27,8 +28,22 @@ func (c *DBConfig) DSN() url.URL {
 }
 
 func (c *DBConfig) Validate() error {
-	if c.Port < 1 || c.Port > 65535 {
-		return fmt.Errorf("port must be between 1 and 65535, got: %d", c.Port)
+	if err := ValidatePort(c.Port); err != nil {
+		return fmt.Errorf("failed to validate DB port: %w", err)
+	}
+
+	if err := ValidateSLLMode(c.SSLMode); err != nil {
+		return fmt.Errorf("failed to validate SSLMode: %w", err)
+	}
+
+	return nil
+}
+
+func ValidateSLLMode(sslMode string) error {
+	options := []string{"disable", "allow", "prefer", "require", "verify-ca", "verify-full"}
+
+	if !slices.Contains(options, sslMode) {
+		return fmt.Errorf("invalid sslMode value: %s", sslMode)
 	}
 
 	return nil

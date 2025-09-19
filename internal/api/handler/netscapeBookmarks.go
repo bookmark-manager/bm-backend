@@ -6,20 +6,16 @@ import (
 	"math"
 	"net/http"
 
-	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
 	"github.com/haadi-coder/bookmark-manager/internal/api/response"
 	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
-	"github.com/haadi-coder/bookmark-manager/internal/storage"
 	"github.com/virtualtam/netscape-go"
 	"github.com/virtualtam/netscape-go/types"
 )
 
-func NetscapeBookmarks(ctx context.Context, storage storage.Storage) http.HandlerFunc {
+func NetscapeBookmarks(ctx context.Context, provider BookmarkProvider) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		slog.With(slog.String("request_id", middleware.GetReqID(r.Context())))
-
-		result, totalCount, err := storage.GetBookmarks(ctx, math.MaxInt32, 0, "")
+		result, totalCount, err := provider.GetBookmarks(ctx, math.MaxInt32, 0, "")
 		if err != nil {
 			slog.Error("failed to get bookmarks from db", logger.Error(err))
 

@@ -2,20 +2,20 @@ package handler
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 
-	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
 	"github.com/haadi-coder/bookmark-manager/internal/api/response"
 )
 
-func CheckHealth(dbPing func(ctx context.Context) error) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		slog.With(slog.String("request_id", middleware.GetReqID(r.Context())))
+type Pinger interface {
+	Ping(ctx context.Context) error
+}
 
+func CheckHealth(pinger Pinger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		dbStatus := "up"
-		if err := dbPing(r.Context()); err != nil {
+		if err := pinger.Ping(r.Context()); err != nil {
 			dbStatus = "down"
 		}
 

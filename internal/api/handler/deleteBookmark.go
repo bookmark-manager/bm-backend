@@ -8,19 +8,18 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
 	"github.com/haadi-coder/bookmark-manager/internal/api/response"
 	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
 
-func DeleteBookmark(ctx context.Context, store storage.Storage) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		slog.With(
-			slog.String("request_id", middleware.GetReqID(r.Context())),
-		)
+type BookmarkRemover interface {
+	DeleteBookmark(ctx context.Context, id int) error
+}
 
+func DeleteBookmark(ctx context.Context, remover BookmarkRemover) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		parsedId, err := strconv.Atoi(id)
 		if err != nil {
@@ -31,7 +30,7 @@ func DeleteBookmark(ctx context.Context, store storage.Storage) http.HandlerFunc
 			return
 		}
 
-		err = store.DeleteBookmark(ctx, parsedId)
+		err = remover.DeleteBookmark(ctx, parsedId)
 		if errors.Is(err, storage.ErrNotFound) {
 			slog.Info(storage.ErrNotFound.Error(), slog.String("id", id))
 

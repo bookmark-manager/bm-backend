@@ -8,17 +8,20 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
 	"github.com/haadi-coder/bookmark-manager/internal/api/response"
-	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
 
-func CheckBookmark(ctx context.Context, storage storage.Storage) http.HandlerFunc {
+type BookmarkChecker interface {
+	BookmarkExist(ctx context.Context, url string) (int, bool, error)
+}
+
+func CheckBookmark(ctx context.Context, checker BookmarkChecker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slog.With(
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 
 		url := r.URL.Query().Get("url")
-		id, ok, err := storage.BookmarkExist(ctx, url)
+		id, ok, err := checker.BookmarkExist(ctx, url)
 		if err != nil {
 			slog.Error("failed to check for bookmark", slog.String("url", url))
 

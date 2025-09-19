@@ -1,4 +1,4 @@
-package postgres
+package storage
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/haadi-coder/bookmark-manager/internal/model"
-	"github.com/haadi-coder/bookmark-manager/internal/storage"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
@@ -29,6 +28,10 @@ func New(path url.URL) (*PostgresStorage, error) {
 	db.SetConnMaxLifetime(10 * time.Second)
 	db.SetMaxOpenConns(3)
 	db.SetMaxIdleConns(3)
+
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to ping db: %w", err)
+	}
 
 	return &PostgresStorage{
 		db: db,
@@ -95,7 +98,7 @@ func (s *PostgresStorage) CreateBookmark(ctx context.Context, title, url string)
 	var bm model.Bookmark
 	if err := row.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt); err != nil {
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == uniqueViolation {
-			return nil, storage.ErrExists
+			return nil, ErrExists
 		}
 
 		return nil, fmt.Errorf("failed to create bookmark: %w", err)
@@ -120,7 +123,7 @@ func (s *PostgresStorage) EditBookmark(ctx context.Context, id int, title, url s
 	var bm model.Bookmark
 	if err := row.Scan(&bm.ID, &bm.URL, &bm.Title, &bm.CreatedAt, &bm.UpdatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, storage.ErrNotFound
+			return nil, ErrNotFound
 		}
 
 		return nil, fmt.Errorf("failed to edit bookmark: %w", err)
@@ -147,7 +150,7 @@ func (s *PostgresStorage) DeleteBookmark(ctx context.Context, id int) error {
 	}
 
 	if rowAffected == 0 {
-		return storage.ErrNotFound
+		return ErrNotFound
 	}
 
 	return nil

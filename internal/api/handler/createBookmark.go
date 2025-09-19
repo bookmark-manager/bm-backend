@@ -7,21 +7,21 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
 	"github.com/go-playground/validator"
 	"github.com/haadi-coder/bookmark-manager/internal/api/request"
 	"github.com/haadi-coder/bookmark-manager/internal/api/response"
 	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
+	"github.com/haadi-coder/bookmark-manager/internal/model"
 	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
 
-func CreateBookmark(ctx context.Context, store storage.Storage) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		slog.With(
-			slog.String("request_id", middleware.GetReqID(r.Context())),
-		)
+type BookmarkCreator interface {
+	CreateBookmark(ctx context.Context, title, url string) (*model.Bookmark, error)
+}
 
+func CreateBookmark(ctx context.Context, creator BookmarkCreator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		var reqData request.Request
 		if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
 			slog.Error("failed to decode request body", logger.Error(err))
@@ -39,7 +39,7 @@ func CreateBookmark(ctx context.Context, store storage.Storage) http.HandlerFunc
 			return
 		}
 
-		new, err := store.CreateBookmark(ctx, reqData.Title, reqData.URL)
+		new, err := creator.CreateBookmark(ctx, reqData.Title, reqData.URL)
 		if errors.Is(err, storage.ErrExists) {
 			slog.Info(storage.ErrExists.Error(), slog.String("url", reqData.URL))
 

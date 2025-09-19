@@ -13,7 +13,6 @@ import (
 	"github.com/go-chi/httplog/v3"
 	"github.com/go-chi/httprate"
 	"github.com/haadi-coder/bookmark-manager/internal/api/handler"
-	"github.com/haadi-coder/bookmark-manager/internal/storage"
 )
 
 const (
@@ -25,7 +24,20 @@ type Server struct {
 	server *http.Server
 }
 
-func NewServer(ctx context.Context, adress string, timeout, idleTimeout time.Duration, storage storage.Storage) *Server {
+type ServerConfig struct {
+	Address     string
+	Timeout     time.Duration
+	IdleTimeout time.Duration
+
+	BookmarkProvider handler.BookmarkProvider
+	BookmarkChecker  handler.BookmarkChecker
+	BookmarkDeleter  handler.BookmarkRemover
+	BookmarkPinger   handler.Pinger
+	BookmarkEditor   handler.BookmarkEditor
+	BookmarkCreator  handler.BookmarkCreator
+}
+
+func NewServer(ctx context.Context, cfg *ServerConfig) *Server {
 	router := chi.NewRouter()
 
 	router.Use(middleware.RequestID)
@@ -34,7 +46,7 @@ func NewServer(ctx context.Context, adress string, timeout, idleTimeout time.Dur
 	router.Use(httplog.RequestLogger(slog.Default(), &httplog.Options{
 		Schema: &httplog.Schema{
 			ErrorType:     "err_type",
-			ErrorMessage:  "err_Msg",
+			ErrorMessage:  "err_msg",
 			RequestBytes:  "req",
 			ResponseBytes: "resp",
 		},
@@ -61,22 +73,24 @@ func NewServer(ctx context.Context, adress string, timeout, idleTimeout time.Dur
 		}),
 	))
 
+	router.Get("/health", handler.CheckHealth(cfg.BookmarkPinger))
+
+	// TODO: api/v1
 	router.Route("/bookmarks", func(r chi.Router) {
-		r.Get("/", handler.GetBookmarks(ctx, storage))
-		r.Post("/", handler.CreateBookmark(ctx, storage))
-		r.Patch("/{id}", handler.EditBookmark(ctx, storage))
-		r.Delete("/{id}", handler.DeleteBookmark(ctx, storage))
-		r.Get("/exists", handler.CheckBookmark(ctx, storage))
-		r.Get("/export/html", handler.NetscapeBookmarks(ctx, storage))
-		r.Get("/health", handler.CheckHealth(storage.Ping))
+		r.Get("/", handler.Bookmarks(ctx, cfg.BookmarkProvider))
+		r.Post("/", handler.CreateBookmark(ctx, cfg.BookmarkCreator))
+		r.Patch("/{id}", handler.EditBookmark(ctx, cfg.BookmarkEditor))
+		r.Delete("/{id}", handler.DeleteBookmark(ctx, cfg.BookmarkDeleter))
+		r.Get("/exists", handler.CheckBookmark(ctx, cfg.BookmarkChecker))
+		r.Get("/export/html", handler.NetscapeBookmarks(ctx, cfg.BookmarkProvider))
 	})
 
 	s := &http.Server{
-		Addr:         adress,
+		Addr:         cfg.Address,
 		Handler:      router,
-		ReadTimeout:  timeout,
-		WriteTimeout: timeout,
-		IdleTimeout:  idleTimeout,
+		ReadTimeout:  cfg.Timeout,
+		WriteTimeout: cfg.Timeout,
+		IdleTimeout:  cfg.IdleTimeout,
 	}
 
 	return &Server{

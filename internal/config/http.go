@@ -19,8 +19,8 @@ func (c *HttpConfig) Address() string {
 }
 
 func (c *HttpConfig) Validate() error {
-	if c.Port < 1 || c.Port > 65535 {
-		return fmt.Errorf("port must be between 1 and 65535, got: %d", c.Port)
+	if err := ValidatePort(c.Port); err != nil {
+		return fmt.Errorf("failed to validate DB port")
 	}
 
 	return nil

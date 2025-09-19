@@ -6,25 +6,26 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
 
 	"github.com/haadi-coder/bookmark-manager/internal/api/request"
 	"github.com/haadi-coder/bookmark-manager/internal/api/response"
 	"github.com/haadi-coder/bookmark-manager/internal/lib/logger"
-	"github.com/haadi-coder/bookmark-manager/internal/storage"
+	"github.com/haadi-coder/bookmark-manager/internal/model"
 )
 
-func GetBookmarks(ctx context.Context, store storage.Storage) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		slog.With(slog.String("request_id", middleware.GetReqID(r.Context())))
+type BookmarkProvider interface {
+	GetBookmarks(ctx context.Context, limit, offset int, search string) ([]*model.Bookmark, int, error)
+}
 
+func Bookmarks(ctx context.Context, provider BookmarkProvider) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		opts, err := request.ParseListOptions(r)
 		if err != nil {
 			slog.Error("failed to parse query params. Default params was applied", logger.Error(err))
 		}
 
-		result, totalCount, err := store.GetBookmarks(ctx, opts.Perpage, opts.Offset(), opts.Search)
+		result, totalCount, err := provider.GetBookmarks(ctx, opts.Perpage, opts.Offset(), opts.Search)
 		if err != nil {
 			slog.Error("failed to get bookmarks from db", logger.Error(err))
 
