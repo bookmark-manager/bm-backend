@@ -73,18 +73,19 @@ func NewServer(ctx context.Context, cfg *ServerConfig) *Server {
 		}),
 	))
 
-	router.Route("/api/v1", func(apiRouter chi.Router) {
-		apiRouter.Get("/health", handler.CheckHealth(cfg.BookmarkPinger))
+	router.Get("/health", handler.CheckHealth(cfg.BookmarkPinger))
 
-		apiRouter.Route("/bookmarks", func(r chi.Router) {
-			r.Get("/", handler.Bookmarks(ctx, cfg.BookmarkProvider))
-			r.Post("/", handler.CreateBookmark(ctx, cfg.BookmarkCreator))
-			r.Patch("/{id}", handler.EditBookmark(ctx, cfg.BookmarkEditor))
-			r.Delete("/{id}", handler.DeleteBookmark(ctx, cfg.BookmarkDeleter))
-			r.Get("/exists", handler.CheckBookmark(ctx, cfg.BookmarkChecker))
-			r.Get("/export/html", handler.NetscapeBookmarks(ctx, cfg.BookmarkProvider))
-		})
+	apiV1Router := chi.NewRouter()
+	apiV1Router.Route("/bookmarks", func(r chi.Router) {
+		r.Get("/", handler.Bookmarks(ctx, cfg.BookmarkProvider))
+		r.Post("/", handler.CreateBookmark(ctx, cfg.BookmarkCreator))
+		r.Patch("/{id}", handler.EditBookmark(ctx, cfg.BookmarkEditor))
+		r.Delete("/{id}", handler.DeleteBookmark(ctx, cfg.BookmarkDeleter))
+		r.Get("/exists", handler.CheckBookmark(ctx, cfg.BookmarkChecker))
+		r.Get("/export/html", handler.NetscapeBookmarks(ctx, cfg.BookmarkProvider))
 	})
+
+	router.Mount("/api/v1", apiV1Router)
 
 	s := &http.Server{
 		Addr:         cfg.Address,
