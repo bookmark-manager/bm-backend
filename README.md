@@ -1,4 +1,4 @@
-# 📚 Bookmark Manager
+# 🔖 Bookmark Manager
 
 A fast and lightweight bookmark management API built with Go, featuring PostgreSQL storage and full-text search capabilities.
 
@@ -22,7 +22,7 @@ A fast and lightweight bookmark management API built with Go, featuring PostgreS
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/haadi-coder/bookmark-manager.git
+   git clone https://github.com/bookmark-manager/bm-backend.git
    cd bookmark-manager
    ```
 
